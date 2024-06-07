@@ -14,12 +14,12 @@ ARG ADMINS=${ADMINS}
 ENV ADMINS=${ADMINS}
 
 FROM base AS install
-RUN mkdir -p /temp/prod
-COPY package.json bun.lockb /temp/prod/
-RUN cd /temp/prod && bun install --production
+RUN mkdir -p /temp/deps
+COPY package.json bun.lockb /temp/deps/
+RUN cd /temp/deps && bun install
 
 FROM base AS release
-COPY --from=install /temp/prod/node_modules node_modules
+COPY --from=install /temp/deps/node_modules node_modules
 COPY . .
 
 RUN bun db:migrate
