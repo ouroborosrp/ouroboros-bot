@@ -24,5 +24,4 @@ COPY . .
 
 RUN mkdir -p /usr/src/app/data
 RUN bun db:migrate
-USER bun
 ENTRYPOINT [ "bun", "dev" ]
