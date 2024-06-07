@@ -1,11 +1,11 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "a9ca9db6-75da-4a19-b9e6-2e4b91c134d9",
+  "id": "9ec2b7d3-51d7-4fc5-a55e-bcef8f5d70e8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "ips": {
-      "name": "ips",
+    "users": {
+      "name": "users",
       "columns": {
         "id": {
           "name": "id",
@@ -35,12 +35,13 @@
           "notNull": true,
           "autoincrement": false
         },
-        "status": {
-          "name": "status",
-          "type": "text",
+        "quota": {
+          "name": "quota",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true,
+          "autoincrement": false,
+          "default": 2
         },
         "created_at": {
           "name": "created_at",
@@ -48,26 +49,11 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "deployed": {
-          "name": "deployed",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": 0
         }
       },
       "indexes": {
-        "ips_ip_discord_id_unique": {
-          "name": "ips_ip_discord_id_unique",
+        "users_ip_discord_id_unique": {
+          "name": "users_ip_discord_id_unique",
           "columns": [
             "ip",
             "discord_id"

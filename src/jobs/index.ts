@@ -1,53 +1,35 @@
 import { db, schema } from '@/db';
 import Logger from '@/lib/logger';
-import { IPTables } from '@/utils/iptables';
 import { Cron } from 'croner';
 import { formatDistance } from 'date-fns';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
-export const updateIPtables = Cron('0 */5 * * * *', { paused: true }, async () => {
+export const updateUserQuota = Cron('0 0 */12 * * *', { paused: true }, async () => {
   const logger = new Logger({
-    name: 'Job:UpdateIPtables',
+    name: 'Job:UpdateUserQuota',
   });
-  const nextRun = formatDistance(updateIPtables.nextRun()!, new Date(), { includeSeconds: true });
+  const nextRun = formatDistance(updateUserQuota.nextRun()!, new Date(), { includeSeconds: true });
 
   try {
-    // Fetch all non deployed ip addresses
-    const ips = await db
-      .select()
-      .from(schema.ips)
-      .where(and(eq(schema.ips.deployed, 0), isNull(schema.ips.deletedAt)));
+    // Fetch all users with quota 0
+    const users = await db.select().from(schema.users).where(eq(schema.users.quota, 0));
 
-    if (ips.length === 0) {
-      logger.info('No IP addresses to update');
+    if (users.length === 0) {
+      logger.info('No users with quota 0 found');
       logger.info('Next cron job in', nextRun);
       return;
     }
 
-    const whitelisted = ips.filter((ip) => ip.status === 'whitelisted');
-    const blacklisted = ips.filter((ip) => ip.status === 'blacklisted');
-
-    // TODO: whitelist ips
-    for (const ip of whitelisted) {
-      IPTables.whitelist(ip.ip);
-    }
-
-    // TODO: blacklist ips
-    for (const ip of blacklisted) {
-      IPTables.blacklist(ip.ip);
-    }
-
-    // Update deployed ips
     await db
-      .update(schema.ips)
-      .set({ deployed: 1 })
+      .update(schema.users)
+      .set({ quota: 2 })
       .where(
         inArray(
-          schema.ips.id,
-          ips.map((ip) => ip.id),
+          schema.users.id,
+          users.map((ip) => ip.id),
         ),
       );
   } catch (error) {
-    logger.error('Failed to update iptables:', error);
+    logger.error('Failed to update users:', error);
   }
 });

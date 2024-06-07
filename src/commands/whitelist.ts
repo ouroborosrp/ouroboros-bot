@@ -1,23 +1,12 @@
 import { db, schema } from '@/db';
 import type { Command } from '@/lib/command';
-import { env } from '@/lib/env';
+import { whitelistUser } from '@/lib/whitelist';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
-const checkIfIpWhitelisted = async (ip: string) => {
-  // We intentionally don't filter by status here, as long as the IP is in the database, it's considered processed
-  const result = await db.select().from(schema.ips).where(eq(schema.ips.ip, ip)).get();
-  return !!result;
-};
-
-const checkIfDiscordIdWhitelisted = async (discordId: string) => {
-  const result = await db.select().from(schema.ips).where(eq(schema.ips.discordId, discordId)).get();
-  return !!result;
-};
-
 const whitelist: Command = {
-  name: 'whitelist',
-  description: 'Whitelist your home IP address (whitelisted only)',
+  name: 'whitelist-ip',
+  description: 'Whitelist your home IP address',
   options: [
     {
       name: 'ip',
@@ -39,44 +28,55 @@ const whitelist: Command = {
       const discordId = interaction.user.id;
       const discordName = interaction.user.username;
 
-      // Check if the user has the right role or is an admin
-      const member = await interaction.guild?.members.fetch(discordId);
-      const isWhitelistedRole = member?.roles.cache.some((role) => role.id === env.WHITELISTED_ROLE_ID);
+      const users = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.discordId, discordId))
+        .limit(1)
+        .execute();
 
-      if (!isWhitelistedRole && !env.ADMINS.includes(discordId)) {
-        await interaction.reply({
-          content: 'You do not have permission to use this command. You are not whitelisted.',
-          ephemeral: true,
-        });
-        return;
+      if (users.length === 0) {
+        // Create a new user
+        try {
+          await whitelistUser(discordId, ip);
+          await db.insert(schema.users).values({
+            ip,
+            discordId,
+            discordName,
+            quota: 1,
+          });
+          await interaction.reply({ content: `Whitelisted IP address ${ip}. Have fun!`, ephemeral: true });
+          return;
+        } catch (error) {
+          await interaction.reply({ content: `Failed to whitelist IP address ${ip}.`, ephemeral: true });
+          return;
+        }
       }
 
-      // Check if the IP address is already whitelisted
-      const isWhitelisted = await checkIfIpWhitelisted(ip);
-      if (isWhitelisted) {
-        await interaction.reply({ content: `IP address ${ip} is already whitelisted.`, ephemeral: true });
-        return;
-      }
-
-      // Check if the Discord ID is already whitelisted
-      const isDiscordIdWhitelisted = await checkIfDiscordIdWhitelisted(discordId);
-      if (isDiscordIdWhitelisted) {
+      const user = users[0];
+      if (user.quota === 0) {
         await interaction.reply({
-          content: `You already have an IP address whitelisted. We only allow one IP per discord user. Contact admins to change it.`,
+          content: `You have used up your quota. Please wait 24h to update your IP again.`,
           ephemeral: true,
         });
         return;
       }
 
       // Save the IP address to the database
-      await db.insert(schema.ips).values({
-        ip,
-        discordId,
-        discordName,
-        status: 'whitelisted',
-      });
+      try {
+        await whitelistUser(discordId, ip);
+        await db
+          .update(schema.users)
+          .set({ ip, quota: user.quota - 1 })
+          .where(eq(schema.users.discordId, discordId));
 
-      await interaction.reply({ content: `Whitelisted IP address ${ip}. Have fun!`, ephemeral: true });
+        await interaction.reply({
+          content: `Whitelisted IP address ${ip}, ${user.quota - 1} quota left`,
+          ephemeral: true,
+        });
+      } catch (error) {
+        await interaction.reply({ content: `Failed to whitelist IP address ${ip}.`, ephemeral: true });
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         await interaction.reply('Invalid IP address');

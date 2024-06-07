@@ -50,7 +50,7 @@ const whitelist: Command = {
       }
 
       // Save the IP address to the database
-      await db.insert(schema.ips).values({ ip, discordId, discordName, status: 'blacklisted' });
+      await db.insert(schema.users).values({ ip, discordId, discordName, status: 'blacklisted' });
 
       await interaction.reply({ content: `Blacklisted <@${discordId}> (IP: ${ip})`, ephemeral: true });
     } catch (error) {

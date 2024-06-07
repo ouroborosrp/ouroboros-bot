@@ -2,13 +2,13 @@ import { buildCommands, type Command } from '@/lib/command';
 import { env } from '@/lib/env';
 import Logger from '@/lib/logger';
 import { Client, Collection, Events, GatewayIntentBits } from 'discord.js';
-import { updateIPtables } from './jobs';
+import { updateUserQuota } from './jobs';
 
 const startService = async () => {
   const logger = new Logger({ name: 'Service' });
   try {
-    updateIPtables.trigger();
-    updateIPtables.resume();
+    updateUserQuota.trigger();
+    updateUserQuota.resume();
   } catch (error) {
     logger.error('Failed to start service:', error);
   }
