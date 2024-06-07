@@ -22,6 +22,7 @@ FROM base AS release
 COPY --from=install /temp/deps/node_modules node_modules
 COPY . .
 
+RUN mkdir -p /usr/src/app/data
 RUN bun db:migrate
 USER bun
 ENTRYPOINT [ "bun", "dev" ]
